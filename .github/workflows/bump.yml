@@ -1,0 +1,100 @@
+name: Bump
+
+# Scheduled, unattended bump of each package's pinned upstream release. Runs
+# that package's update.mjs and, when its manifest.json changes, builds it and
+# opens/updates a PR for human review. Moved here from packruler/nix-custom's
+# claude-code-bump.yml when these packages moved out of that repo.
+#
+# ---------------------------------------------------------------------------
+# INERT UNTIL ONE SECRET EXISTS. Settings -> Secrets and variables ->
+# Actions -> "New repository secret", named PACKAGES_BUMP_TOKEN: a
+# fine-grained personal access token (or GitHub App installation token)
+# scoped to only this repository, with "Contents: Read and write" and "Pull
+# requests: Read and write".
+#
+# Not the built-in GITHUB_TOKEN: a PR opened with it does not trigger other
+# workflows, so the bump PR would land with Check never having run.
+#
+# Never auto-merges. A human reviews and merges after Check passes.
+# ---------------------------------------------------------------------------
+
+on:
+  schedule:
+    - cron: "17 6 * * *"
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  bump:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - package: claude-code
+            update-args: stable
+            what: claude-code (stable channel)
+          - package: orca-ide
+            update-args: ""
+            what: orca-ide (latest release)
+    steps:
+      - name: Require PACKAGES_BUMP_TOKEN
+        env:
+          BUMP_TOKEN: ${{ secrets.PACKAGES_BUMP_TOKEN }}
+        run: |
+          if [ -z "$BUMP_TOKEN" ]; then
+            echo "::error::PACKAGES_BUMP_TOKEN secret is not set, so this workflow cannot push a branch or open a PR. See the comment header of .github/workflows/bump.yml." >&2
+            exit 1
+          fi
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: cachix/install-nix-action@13d8dd58da0234aa297dedd986986ccb8e7f3e24 # v31.11.1
+        with:
+          github_access_token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Bump ${{ matrix.what }}
+        run: node pkgs/${{ matrix.package }}/update.mjs ${{ matrix.update-args }}
+
+      - name: Check whether the pin changed
+        id: diff
+        run: |
+          if git diff --quiet -- pkgs/${{ matrix.package }}/manifest.json; then
+            echo "${{ matrix.package }} is already current; nothing to build or open."
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      # Builds through the flake's own packages output, which carries
+      # allowUnfree for claude-code. For claude-code this runs
+      # versionCheckHook against the freshly pinned binary.
+      - name: Build against the new pin
+        if: steps.diff.outputs.changed == 'true'
+        run: nix build -L .#${{ matrix.package }}
+
+      - name: Open or update the bump PR
+        if: steps.diff.outputs.changed == 'true'
+        uses: peter-evans/create-pull-request@5f6978faf089d4d20b00c7766989d076bb2fc7f1 # v8.1.1
+        with:
+          token: ${{ secrets.PACKAGES_BUMP_TOKEN }}
+          branch: claude/${{ matrix.package }}-bump
+          base: main
+          add-paths: pkgs/${{ matrix.package }}/manifest.json
+          commit-message: "Bump pinned ${{ matrix.what }}"
+          title: "Bump pinned ${{ matrix.what }}"
+          body: |
+            Automated bump via `.github/workflows/bump.yml` running
+            `node pkgs/${{ matrix.package }}/update.mjs ${{ matrix.update-args }}`.
+
+            `nix build .#${{ matrix.package }}` ran in this job against the new
+            pin -- see the "Build against the new pin" step in this PR's
+            workflow run.
+
+            This PR is **not** auto-merged. Review the `manifest.json` diff
+            and wait for `Check` to pass before merging. Consumers pick it up
+            with a `flake.lock` bump of their `nix-packages` input.
