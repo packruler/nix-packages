@@ -65,7 +65,13 @@
   pango,
   systemd,
   vulkan-loader,
-  xorg,
+  libx11,
+  libxcb,
+  libxcomposite,
+  libxdamage,
+  libxext,
+  libxfixes,
+  libxrandr,
   manifest ? lib.importJSON ./manifest.json,
   # Extra Electron flags for every app launch -- from the desktop entry and
   # from the CLI alike. Never applied to the CLI's own Node-mode process.
@@ -116,13 +122,13 @@ stdenvNoCC.mkDerivation (finalAttrs: {
     vulkan-loader
     # node-pty, sherpa-onnx and the other bundled native binaries link libstdc++.
     stdenv.cc.cc.lib
-    xorg.libX11
-    xorg.libxcb
-    xorg.libXcomposite
-    xorg.libXdamage
-    xorg.libXext
-    xorg.libXfixes
-    xorg.libXrandr
+    libx11
+    libxcb
+    libxcomposite
+    libxdamage
+    libxext
+    libxfixes
+    libxrandr
   ];
 
   # dlopen()ed by Electron at runtime, so autoPatchelf can't see them.
