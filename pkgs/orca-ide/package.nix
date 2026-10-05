@@ -142,13 +142,15 @@ stdenvNoCC.mkDerivation (finalAttrs: {
 
   # resources/orcad-template is not run here. It is the runtime Orca uploads
   # to *remote* SSH hosts, one prebuilt tree per target (linux glibc and musl,
-  # darwin, win32), and orcad-template.json pins the sha256 of every file in
-  # it. autoPatchelf over the whole output would rewrite those ELF files'
-  # interpreter and RPATH to /nix/store paths: the musl ones fail the build
-  # outright (no libc.musl to point at), and the glibc ones "succeed" into
-  # files that no longer match their pinned hash and would not run on a
-  # non-Nix host anyway. autoPatchelf has no exclude, so the automatic pass is
-  # off and postFixup runs it over everything else.
+  # darwin, win32), and orcad-template.json pins the sha256 of every other
+  # file in it. autoPatchelf over the whole output would rewrite those ELF
+  # files' interpreter and RPATH to /nix/store paths: the musl ones fail the
+  # build outright (no libc.musl to point at), and the glibc ones "succeed"
+  # into files that no longer match their pinned hash and would not run on a
+  # non-Nix host anyway. So the musl failure must not be silenced with
+  # autoPatchelfIgnoreMissingDeps -- that ships the broken glibc copies.
+  # autoPatchelf has no exclude, so the automatic pass is off and postFixup
+  # runs it over everything else.
   dontAutoPatchelf = true;
 
   # chrome-sandbox ships in the deb and is left NOT setuid: a store path cannot
