@@ -140,6 +140,17 @@ stdenvNoCC.mkDerivation (finalAttrs: {
   # Applied only to the app launcher below.
   dontWrapGApps = true;
 
+  # resources/orcad-template is not run here. It is the runtime Orca uploads
+  # to *remote* SSH hosts, one prebuilt tree per target (linux glibc and musl,
+  # darwin, win32), and orcad-template.json pins the sha256 of every file in
+  # it. autoPatchelf over the whole output would rewrite those ELF files'
+  # interpreter and RPATH to /nix/store paths: the musl ones fail the build
+  # outright (no libc.musl to point at), and the glibc ones "succeed" into
+  # files that no longer match their pinned hash and would not run on a
+  # non-Nix host anyway. autoPatchelf has no exclude, so the automatic pass is
+  # off and postFixup runs it over everything else.
+  dontAutoPatchelf = true;
+
   # chrome-sandbox ships in the deb and is left NOT setuid: a store path cannot
   # carry the bit, and under no_new_privs the kernel would ignore it anyway.
   # A desktop falls back to Chromium's user-namespace sandbox; a pod without
@@ -175,6 +186,11 @@ stdenvNoCC.mkDerivation (finalAttrs: {
   # makeBinaryWrapper, which takes over makeWrapper and cannot expand the
   # ${NIXOS_OZONE_WL...} flag at runtime -- it passes it through literally.
   postFixup = ''
+    # See dontAutoPatchelf above: every file except the orcad-template tree.
+    mapfile -d "" patchelfPaths < <(find $out \
+      -path $out/opt/Orca/resources/orcad-template -prune -o -type f -print0)
+    autoPatchelf --no-recurse -- "''${patchelfPaths[@]}"
+
     makeShellWrapper $out/opt/Orca/orca-ide $out/libexec/orca-ide/orca-ide \
       "''${gappsWrapperArgs[@]}" \
       ${
