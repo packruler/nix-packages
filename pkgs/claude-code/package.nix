@@ -8,6 +8,9 @@
 #     lives in ./manifest.json and callers can `.override { manifest = ...; }`.
 #   * `extraEnv` adds `--set` flags to the wrapper so non-secret environment
 #     variables can be configured from Nix (see the comment on the argument).
+#   * `envFiles` puts a shell script in front of the wrapper that sources
+#     dotenv files at runtime, for variables that are secret (see the comment
+#     on the argument).
 #   * `meta.maintainers` is dropped -- the nixpkgs maintainers do not maintain
 #     this copy.
 #   * `passthru.updateScript` points at ./update.mjs rather than nixpkgs'
@@ -43,7 +46,23 @@
   # `ANTHROPIC_IDENTITY_TOKEN_FILE` / `apiKeyHelper` mechanisms, which read a
   # path at runtime, instead of this argument.
   extraEnv ? { },
+  # Runtime paths of dotenv-style files (e.g. an agenix secret under
+  # /run/agenix) to source before starting claude-code, for variables that must
+  # NOT land in the nix store -- an OTLP exporter's auth header, say. Each file
+  # is sourced with `set -a`, so plain `NAME=value` lines are exported too; a
+  # file that is missing or unreadable is skipped silently.
+  #
+  # makeBinaryWrapper cannot run shell code, so a non-empty list adds a small
+  # shell script in front of the binary wrapper. The files are sourced first,
+  # so the wrapper's own `--set` flags (the defaults and `extraEnv`) still win.
+  #
+  # Must be strings: a Nix path literal (./foo.env) would be copied into the
+  # world-readable store, which defeats the point -- hence the assertion below.
+  envFiles ? [ ],
+  runtimeShell,
 }:
+assert lib.assertMsg (lib.all builtins.isString envFiles)
+  "claude-code: envFiles must be runtime path strings, not Nix paths (which would copy the file into the nix store)";
 let
   stdenv = stdenvNoCC;
   baseUrl = "https://downloads.claude.ai/claude-code-releases";
@@ -106,6 +125,22 @@ stdenv.mkDerivation (finalAttrs: {
           ]
         )
       }
+  ''
+  + lib.optionalString (envFiles != [ ]) ''
+    mv $out/bin/claude $out/bin/.claude-env-wrapped
+    cat > $out/bin/claude <<'EOF'
+    #!${runtimeShell}
+    set -a
+    ${
+      lib.concatMapStrings (
+        file: "if [ -r ${lib.escapeShellArg file} ]; then . ${lib.escapeShellArg file}; fi\n"
+      ) envFiles
+    }set +a
+    exec -a "$0" ${placeholder "out"}/bin/.claude-env-wrapped "$@"
+    EOF
+    chmod +x $out/bin/claude
+  ''
+  + ''
 
     runHook postInstall
   '';

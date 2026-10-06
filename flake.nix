@@ -51,6 +51,23 @@
           touch $out
         '';
 
+        # envFiles must source the file at runtime and still start claude-code.
+        # The path is fixed at build time, so the test writes to a known
+        # sandbox path and traces the front script to see the file get sourced.
+        claude-code-env-files =
+          let
+            envFile = "/tmp/claude-code-env-files-check.env";
+            claude-code = pkgs.claude-code.override { envFiles = [ envFile ]; };
+          in
+          pkgs.runCommand "claude-code-env-files" { } ''
+            export HOME=$TMPDIR
+            ${claude-code}/bin/claude --version
+            echo 'CLAUDE_CODE_ENV_FILES_CHECK=1' > ${envFile}
+            ${pkgs.bash}/bin/bash -x ${claude-code}/bin/claude --version 2> trace
+            grep -F '. ${envFile}' trace
+            touch $out
+          '';
+
         formatting = pkgs.runCommand "formatting" { nativeBuildInputs = [ pkgs.nixfmt-tree ]; } ''
           cp -r ${self} src
           chmod -R u+w src
