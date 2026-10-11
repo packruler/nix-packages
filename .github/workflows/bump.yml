@@ -21,7 +21,12 @@ name: Bump
 on:
   schedule:
     - cron: "17 6 * * *"
-  workflow_dispatch: {}
+  workflow_dispatch:
+    inputs:
+      force_failure:
+        description: "Fail every bump leg immediately, to exercise the tracking-issue report"
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -40,6 +45,12 @@ jobs:
             update-args: ""
             what: orca-ide (latest release)
     steps:
+      - name: Forced failure
+        if: inputs.force_failure
+        run: |
+          echo "::error::force_failure was set on this workflow_dispatch run." >&2
+          exit 1
+
       - name: Require PACKAGES_BUMP_TOKEN
         env:
           BUMP_TOKEN: ${{ secrets.PACKAGES_BUMP_TOKEN }}
@@ -98,3 +109,46 @@ jobs:
             This PR is **not** auto-merged. Review the `manifest.json` diff
             and wait for `Check` to pass before merging. Consumers pick it up
             with a `flake.lock` bump of their `nix-packages` input.
+
+  # A failed scheduled run opens no PR, and a missing bump PR looks exactly
+  # like "no new release" -- so a failure went unnoticed for a week (#4).
+  # Keep one open tracking issue while the bump is failing, and close it on
+  # the next green run. This is a separate job rather than a step in each
+  # matrix leg so the two legs can't race, or close the issue while the
+  # other leg is still failing.
+  report:
+    needs: bump
+    if: always()
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      TITLE: Daily bump is failing
+      RESULT: ${{ needs.bump.result }}
+      RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+    steps:
+      - name: Open, update or close the tracking issue
+        run: |
+          number=$(gh issue list --state open --search "in:title \"$TITLE\"" \
+            --json number,title --jq 'first(.[] | select(.title == env.TITLE) | .number)')
+          case "$RESULT" in
+            failure)
+              if [ -n "$number" ]; then
+                gh issue comment "$number" --body "Failed again: $RUN_URL"
+              else
+                gh issue create --title "$TITLE" --body "The scheduled \`bump.yml\` run failed: $RUN_URL
+
+          This issue is opened and closed by the \`report\` job in \`.github/workflows/bump.yml\`. Each further failure adds a comment, and the next green run closes it."
+              fi
+              ;;
+            success)
+              if [ -n "$number" ]; then
+                gh issue close "$number" --comment "Green again: $RUN_URL"
+              fi
+              ;;
+            *)
+              echo "bump result was '$RESULT'; leaving the tracking issue alone."
+              ;;
+          esac
