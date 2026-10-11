@@ -138,7 +138,7 @@ jobs:
               if [ -n "$number" ]; then
                 gh issue comment "$number" --body "Failed again: $RUN_URL"
               else
-                gh issue create --title "$TITLE" --body "The scheduled \`bump.yml\` run failed: $RUN_URL
+                gh issue create --title "$TITLE" --body "The \`bump.yml\` run failed: $RUN_URL
 
           This issue is opened and closed by the \`report\` job in \`.github/workflows/bump.yml\`. Each further failure adds a comment, and the next green run closes it."
               fi
