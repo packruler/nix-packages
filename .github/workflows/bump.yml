@@ -34,8 +34,8 @@ jobs:
       matrix:
         include:
           - package: claude-code
-            update-args: stable
-            what: claude-code (stable channel)
+            update-args: ""
+            what: claude-code (latest channel)
           - package: orca-ide
             update-args: ""
             what: orca-ide (latest release)

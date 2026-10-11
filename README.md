@@ -8,7 +8,7 @@ each one is packaged once instead of once per consumer.
 | Package | What | Bump |
 |---|---|---|
 | `orca-ide` | [Orca](https://github.com/stablyai/orca), repackaged from the upstream `.deb` | `node pkgs/orca-ide/update.mjs` |
-| `claude-code` | [Claude Code](https://github.com/anthropics/claude-code), vendored from nixpkgs so it can be bumped ahead of a channel | `node pkgs/claude-code/update.mjs stable` |
+| `claude-code` | [Claude Code](https://github.com/anthropics/claude-code), vendored from nixpkgs so it can be bumped ahead of a channel | `node pkgs/claude-code/update.mjs` |
 
 `.github/workflows/bump.yml` runs both bumps daily and opens a PR for each
 change.
