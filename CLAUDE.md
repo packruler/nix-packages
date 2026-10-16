@@ -10,4 +10,4 @@ The five triage roles map onto the repo's existing state labels (`unknown`, `pen
 
 ### Domain docs
 
-Single-context: `README.md` is the design doc today; a root `CONTEXT.md` and `docs/adr/` are created lazily (neither exists yet). See `docs/agents/domain.md`.
+Single-context: `README.md` is the design doc today; a root `CONTEXT.md` and `docs/adr/` are created lazily (neither exists yet). Only decisions that impact multiple projects go to `packruler/homelab-docs` `decisions/`. See `docs/agents/domain.md`.
