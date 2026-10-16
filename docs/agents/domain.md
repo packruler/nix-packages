@@ -10,6 +10,11 @@ How the engineering skills should consume this repo's domain documentation when 
 
 `CONTEXT.md` and `docs/adr/` don't exist yet. Don't flag their absence; don't suggest creating them upfront. The `/domain-modeling` skill (reached via `/grill-with-docs` and `/improve-codebase-architecture`) creates them lazily when terms or decisions actually get resolved.
 
+## Where decisions are recorded
+
+- **A decision about this repo alone** (its packages, overlay, bump workflow) is an ADR in `docs/adr/` here.
+- **A decision that impacts multiple projects** belongs in `packruler/homelab-docs` `decisions/`, not here. Write it there as the next `NNNN-<slug>.md` from `decisions/template.md`, in its own worktree and PR.
+
 ## File structure
 
 Single-context repo. A Nix flake, not a `src/` tree: each package lives in `pkgs/<name>/` as `package.nix`, `manifest.json` (the pinned version and hashes) and `update.mjs` (the bump script `.github/workflows/bump.yml` runs daily).
@@ -38,6 +43,6 @@ If the concept you need isn't in the glossary yet, that's a signal: either you'r
 
 ## Flag conflicts with recorded decisions
 
-If your output contradicts an ADR, or a decision recorded in `README.md`, surface it explicitly rather than silently overriding. For example (the format, not a real decision):
+If your output contradicts an ADR, a decision recorded in `README.md`, or a `homelab-docs` decision, surface it explicitly rather than silently overriding. For example (the format, not a real decision):
 
 > _Contradicts ADR-NNNN (&lt;title&gt;), but worth reopening because…_
