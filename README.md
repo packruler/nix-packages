@@ -7,8 +7,12 @@ each one is packaged once instead of once per consumer.
 
 | Package | What | Bump |
 |---|---|---|
-| `orca-ide` | [Orca](https://github.com/stablyai/orca), repackaged from the upstream `.deb` | `node pkgs/orca-ide/update.mjs` |
-| `claude-code` | [Claude Code](https://github.com/anthropics/claude-code), vendored from nixpkgs so it can be bumped ahead of a channel | `node pkgs/claude-code/update.mjs` |
+| `orca-ide` | [Orca](https://github.com/stablyai/orca), repackaged from the upstream `.deb` | `devbox run bump_orca_ide` |
+| `claude-code` | [Claude Code](https://github.com/anthropics/claude-code), vendored from nixpkgs so it can be bumped ahead of a channel | `devbox run bump_claude_code` |
+
+Each bump script passes its arguments through to that package's `update.mjs`
+(e.g. `devbox run bump_orca_ide 1.4.218`). `devbox run bump` runs both and
+fails if either did.
 
 `.github/workflows/bump.yml` runs both bumps daily and opens a PR for each
 change.
