@@ -1,0 +1,30 @@
+{
+  "$schema": "https://raw.githubusercontent.com/jetify-com/devbox/0.17.2/.schema/devbox.schema.json",
+  "packages": [
+    "nodejs@latest",
+    "gnupg@latest"
+  ],
+  "env": {
+    "EDITOR":            "code -w",
+    "GIT_EDITOR":        "code -w",
+    "HISTDIR":           "$DEVBOX_PROJECT_ROOT/.devbox",
+    "ZSH_EXTRA_PLUGINS": ""
+  },
+  "shell": {
+    "scripts": {
+      "bump_claude_code": [
+        "node pkgs/claude-code/update.mjs \"$@\""
+      ],
+      "bump_orca_ide": [
+        "node pkgs/orca-ide/update.mjs \"$@\""
+      ],
+      "bump": [
+        "# Run every bump even if one fails, like bump.yml's fail-fast: false, then fail if any did.",
+        "rc=0",
+        "node pkgs/claude-code/update.mjs || rc=1",
+        "node pkgs/orca-ide/update.mjs || rc=1",
+        "exit $rc"
+      ]
+    }
+  }
+}
