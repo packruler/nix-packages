@@ -22,6 +22,7 @@ import { fileURLToPath } from "node:url";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const RELEASES = "https://github.com/stablyai/orca/releases";
+const API = "https://api.github.com/repos/stablyai/orca/releases/tags";
 const OUT = join(HERE, "manifest.json");
 
 const die = (msg) => {
@@ -58,5 +59,16 @@ if (at === -1) die(`${url} lists no ${deb}`);
 const sha512 = lines[at + 1]?.match(/^\s+sha512:\s*(\S+)\s*$/)?.[1];
 if (!sha512 || Buffer.from(sha512, "base64").length !== 64) die(`no valid sha512 for ${deb} in ${url}`);
 
-writeFileSync(OUT, `${JSON.stringify({ version, sha512 }, null, 2)}\n`);
-console.log(`orca-ide pinned to ${version}`);
+// package.nix's fallback URL is the API asset endpoint, which needs the numeric
+// asset id. It is not derivable from the version, so record it with the hash.
+// GITHUB_TOKEN/GH_TOKEN, when set, lifts the 60/h unauthenticated rate limit.
+const token = process.env.GITHUB_TOKEN ?? process.env.GH_TOKEN;
+const relRes = await fetch(`${API}/v${version}`, {
+  headers: { Accept: "application/vnd.github+json", ...(token && { Authorization: `Bearer ${token}` }) },
+});
+if (!relRes.ok) die(`GET ${API}/v${version} -> HTTP ${relRes.status}`);
+const assetId = (await relRes.json()).assets?.find((a) => a.name === deb)?.id;
+if (!Number.isInteger(assetId)) die(`release v${version} lists no asset named ${deb}`);
+
+writeFileSync(OUT, `${JSON.stringify({ version, sha512, assetId }, null, 2)}\n`);
+console.log(`orca-ide pinned to ${version} (asset ${assetId})`);
