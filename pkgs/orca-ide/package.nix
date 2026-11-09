@@ -88,8 +88,26 @@ stdenvNoCC.mkDerivation (finalAttrs: {
   pname = "orca-ide";
   inherit (manifest) version;
 
+  # Two sources for the same pinned hash. releases/download is primary; on
+  # 2026-11-09 it returned 504 for 15+ minutes on the large .debs while the API
+  # asset endpoint kept working. The API one is the fallback, not the primary:
+  # unauthenticated it is limited to 60 requests/h per IP. The 504s flap, and
+  # nix's own fetch retries (1s, 2s, 4s) fit inside one 504 window, so retrying
+  # the single URL does not help. The API endpoint only serves the
+  # binary with `Accept: application/octet-stream`, which curlOptsList sends to
+  # both URLs. The hash makes a second source safe. A manifest without an
+  # assetId (older callers) degrades to the single download URL.
   src = fetchurl {
-    url = "https://github.com/stablyai/orca/releases/download/v${finalAttrs.version}/orca-ide_${finalAttrs.version}_amd64.deb";
+    urls = [
+      "https://github.com/stablyai/orca/releases/download/v${finalAttrs.version}/orca-ide_${finalAttrs.version}_amd64.deb"
+    ]
+    ++ lib.optional (
+      manifest ? assetId
+    ) "https://api.github.com/repos/stablyai/orca/releases/assets/${toString manifest.assetId}";
+    curlOptsList = [
+      "-H"
+      "Accept: application/octet-stream"
+    ];
     hash = "sha512-${manifest.sha512}";
   };
 
