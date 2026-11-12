@@ -68,6 +68,28 @@
             touch $out
           '';
 
+        # settingsFile must be passed as `--settings` only while the file is
+        # readable: claude refuses to start with a missing `--settings` path,
+        # so the first run (no file yet) must still succeed without the flag.
+        claude-code-settings-file =
+          let
+            settingsFile = "/tmp/claude-code-settings-file-check.json";
+            claude-code = pkgs.claude-code.override { inherit settingsFile; };
+          in
+          pkgs.runCommand "claude-code-settings-file" { } ''
+            export HOME=$TMPDIR
+            rm -f ${settingsFile}
+            ${pkgs.bash}/bin/bash -x ${claude-code}/bin/claude --version 2> trace-absent
+            if grep -F -- '--settings' trace-absent; then
+              echo "passed --settings for a file that does not exist" >&2
+              exit 1
+            fi
+            echo '{}' > ${settingsFile}
+            ${pkgs.bash}/bin/bash -x ${claude-code}/bin/claude --version 2> trace-present
+            grep -F -- '--settings ${settingsFile} --version' trace-present
+            touch $out
+          '';
+
         formatting = pkgs.runCommand "formatting" { nativeBuildInputs = [ pkgs.nixfmt-tree ]; } ''
           cp -r ${self} src
           chmod -R u+w src

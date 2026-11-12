@@ -11,6 +11,8 @@
 #   * `envFiles` puts a shell script in front of the wrapper that sources
 #     dotenv files at runtime, for variables that are secret (see the comment
 #     on the argument).
+#   * `settingsFile` makes that same front script pass `--settings <file>` when
+#     the file is readable (see the comment on the argument).
 #   * `meta.maintainers` is dropped -- the nixpkgs maintainers do not maintain
 #     this copy.
 #   * `passthru.updateScript` points at ./update.mjs rather than nixpkgs'
@@ -59,11 +61,28 @@
   # Must be strings: a Nix path literal (./foo.env) would be copied into the
   # world-readable store, which defeats the point -- hence the assertion below.
   envFiles ? [ ],
+  # Runtime path of a Claude Code settings file to layer over the user's
+  # ~/.claude/settings.json on every launch, via `claude --settings <file>`.
+  # Keys it sets take precedence over the user file; hooks from both run.
+  # Meant for a settings file kept in a git checkout, so the user file can stay
+  # owned by tools that rewrite it (Orca replaces a symlinked one).
+  #
+  # Checked at runtime and passed only when readable: claude exits with
+  # "Settings file not found" for a missing `--settings` path, so an
+  # unconditional flag would stop claude starting at all if the file moved.
+  #
+  # Uses the same front script as `envFiles`, for the same reason
+  # (makeBinaryWrapper cannot run shell code). Must be a string, not a Nix path
+  # literal, which would copy a frozen snapshot of the file into the store.
+  settingsFile ? null,
   runtimeShell,
 }:
 assert lib.assertMsg (lib.all builtins.isString envFiles)
   "claude-code: envFiles must be runtime path strings, not Nix paths (which would copy the file into the nix store)";
+assert lib.assertMsg (settingsFile == null || builtins.isString settingsFile)
+  "claude-code: settingsFile must be a runtime path string, not a Nix path (which would copy a snapshot into the nix store)";
 let
+  needsFrontScript = envFiles != [ ] || settingsFile != null;
   stdenv = stdenvNoCC;
   baseUrl = "https://downloads.claude.ai/claude-code-releases";
   platformKey = "${stdenv.hostPlatform.node.platform}-${stdenv.hostPlatform.node.arch}";
@@ -126,7 +145,7 @@ stdenv.mkDerivation (finalAttrs: {
         )
       }
   ''
-  + lib.optionalString (envFiles != [ ]) ''
+  + lib.optionalString needsFrontScript ''
     mv $out/bin/claude $out/bin/.claude-env-wrapped
     cat > $out/bin/claude <<'EOF'
     #!${runtimeShell}
@@ -136,7 +155,11 @@ stdenv.mkDerivation (finalAttrs: {
         file: "if [ -r ${lib.escapeShellArg file} ]; then . ${lib.escapeShellArg file}; fi\n"
       ) envFiles
     }set +a
-    exec -a "$0" ${placeholder "out"}/bin/.claude-env-wrapped "$@"
+    ${
+      lib.optionalString (settingsFile != null) ''
+        if [ -r ${lib.escapeShellArg settingsFile} ]; then set -- --settings ${lib.escapeShellArg settingsFile} "$@"; fi
+      ''
+    }exec -a "$0" ${placeholder "out"}/bin/.claude-env-wrapped "$@"
     EOF
     chmod +x $out/bin/claude
   ''
