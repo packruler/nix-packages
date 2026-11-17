@@ -41,6 +41,9 @@ jobs:
           - package: claude-code
             update-args: ""
             what: claude-code (latest channel)
+          - package: codex
+            update-args: ""
+            what: codex (latest release)
           - package: orca-ide
             update-args: ""
             what: orca-ide (latest release)

@@ -4,5 +4,6 @@
 # unstable; neither should be dragged onto a third nixpkgs by depending on this.
 final: _prev: {
   claude-code = final.callPackage ./pkgs/claude-code/package.nix { };
+  codex = final.callPackage ./pkgs/codex/package.nix { };
   orca-ide = final.callPackage ./pkgs/orca-ide/package.nix { };
 }

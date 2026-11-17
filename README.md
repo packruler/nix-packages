@@ -9,12 +9,13 @@ each one is packaged once instead of once per consumer.
 |---|---|---|
 | `orca-ide` | [Orca](https://github.com/stablyai/orca), repackaged from the upstream `.deb` | `devbox run bump_orca_ide` |
 | `claude-code` | [Claude Code](https://github.com/anthropics/claude-code), vendored from nixpkgs so it can be bumped ahead of a channel | `devbox run bump_claude_code` |
+| `codex` | [Codex CLI](https://github.com/openai/codex), repackaged from upstream's prebuilt release bundle | `devbox run bump_codex` |
 
 Each bump script passes its arguments through to that package's `update.mjs`
-(e.g. `devbox run bump_orca_ide 1.4.218`). `devbox run bump` runs both and
-fails if either did.
+(e.g. `devbox run bump_orca_ide 1.4.218`). `devbox run bump` runs all of them
+and fails if any did.
 
-`.github/workflows/bump.yml` runs both bumps daily and opens a PR for each
+`.github/workflows/bump.yml` runs every bump daily and opens a PR for each
 change.
 
 ## Using it

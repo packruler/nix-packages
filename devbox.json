@@ -15,6 +15,9 @@
       "bump_claude_code": [
         "node pkgs/claude-code/update.mjs \"$@\""
       ],
+      "bump_codex": [
+        "node pkgs/codex/update.mjs \"$@\""
+      ],
       "bump_orca_ide": [
         "node pkgs/orca-ide/update.mjs \"$@\""
       ],
@@ -22,6 +25,7 @@
         "# Run every bump even if one fails, like bump.yml's fail-fast: false, then fail if any did.",
         "rc=0",
         "node pkgs/claude-code/update.mjs || rc=1",
+        "node pkgs/codex/update.mjs || rc=1",
         "node pkgs/orca-ide/update.mjs || rc=1",
         "exit $rc"
       ]

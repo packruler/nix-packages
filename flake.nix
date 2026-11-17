@@ -11,7 +11,7 @@
       system = "x86_64-linux";
       pkgs = import nixpkgs {
         inherit system;
-        # claude-code is unfree; orca-ide is MIT.
+        # claude-code is unfree; codex is Apache-2.0; orca-ide is MIT.
         config.allowUnfree = true;
         overlays = [ self.overlays.default ];
       };
@@ -29,12 +29,12 @@
       overlays.default = import ./overlay.nix;
 
       packages.${system} = {
-        inherit (pkgs) claude-code orca-ide;
+        inherit (pkgs) claude-code codex orca-ide;
         inherit orca-ide-headless;
       };
 
       checks.${system} = {
-        inherit (pkgs) claude-code orca-ide;
+        inherit (pkgs) claude-code codex orca-ide;
         inherit orca-ide-headless;
 
         # The two properties the headless variant exists for, asserted on the
